@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
@@ -27,8 +28,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  static const String keyStart = "start";
+  static const String keyLaps = "laps";
+
   static const String initialTimerText = "00:00.0";
   final _timerFormat = DateFormat("mm:ss.S");
+  late final SharedPreferences _sharedPreferences;
 
   Timer? _timer;
   late DateTime _startTime;
@@ -36,6 +41,30 @@ class _MyHomePageState extends State<MyHomePage> {
   String _timerText = initialTimerText;
 
   List<String> _laps = [];
+
+  @override
+  void initState() {
+    super.initState();
+    setUpSharedPreferences();
+  }
+
+  setUpSharedPreferences() async {
+    _sharedPreferences = await SharedPreferences.getInstance();
+
+    int startTime = _sharedPreferences.getInt(keyStart) ?? 0;
+    if (0 != startTime) {
+      _startTime = Clock(
+            () => DateTime.fromMillisecondsSinceEpoch(startTime),
+      ).now();
+      print(_startTime);
+      updateElapsed();
+    }
+
+    List<String> laps = _sharedPreferences.getStringList(keyLaps) ?? [];
+    if( laps.isNotEmpty ) {
+      _laps = laps;
+    }
+  }
 
   @override
   void dispose() {
@@ -46,7 +75,9 @@ class _MyHomePageState extends State<MyHomePage> {
   start() {
     stop();
     _laps.clear();
+    _sharedPreferences.remove(keyLaps);
     _startTime = clock.now();
+    _sharedPreferences.setInt(keyStart, _startTime.millisecondsSinceEpoch);
     updateElapsed();
   }
 
@@ -73,6 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   stop() {
     stopTimer();
+    _sharedPreferences.remove(keyStart);
     setState(() {
       _timerText = initialTimerText;
     });
@@ -82,6 +114,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _laps.add(_timerText);
     });
+    _sharedPreferences.setStringList(keyLaps, _laps);
   }
 
   @override
