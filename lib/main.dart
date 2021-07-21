@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -12,9 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Stopwatch App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       home: MyHomePage(title: 'Stopwatch App'),
     );
   }
@@ -36,30 +35,52 @@ class _MyHomePageState extends State<MyHomePage> {
   late DateTime _elapsed;
   String _timerText = initialTimerText;
 
+  List<String> _laps = [];
+
+  @override
+  void dispose() {
+    super.dispose();
+    stopTimer();
+  }
+
   start() {
     stop();
-    _startTime = DateTime.now();
+    _laps.clear();
+    _startTime = clock.now();
     updateElapsed();
   }
 
   updateElapsed() async {
-    _timer = Timer.periodic(Duration(milliseconds: 100), (timer) {
-      _elapsed = DateTime.now().subtract(Duration(
-        milliseconds: _startTime.millisecondsSinceEpoch,
-      ));
-      String timerText = _timerFormat.format(_elapsed);
-      //remove last two characters to simulate tenths
-      timerText = timerText.substring(0, timerText.length - 2);
-      setState(() {
-        _timerText = timerText;
-      });
-    });
+    _timer = Timer.periodic(
+      Duration(milliseconds: 10),
+      (timer) {
+        _elapsed = clock.now().subtract(
+            Duration(milliseconds: _startTime.millisecondsSinceEpoch));
+        String timerText = _timerFormat.format(_elapsed);
+        //remove last two characters to simulate tenths
+        timerText = timerText.substring(0, timerText.length - 2);
+        setState(() {
+          _timerText = timerText;
+        });
+      },
+    );
+  }
+
+  stopTimer() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   stop() {
-    _timer?.cancel();
+    stopTimer();
     setState(() {
       _timerText = initialTimerText;
+    });
+  }
+
+  lap() {
+    setState(() {
+      _laps.add(_timerText);
     });
   }
 
@@ -75,12 +96,14 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 '$_timerText',
+                key: Key('timer.display'),
                 style: Theme.of(context).textTheme.headline4,
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: ElevatedButton(
+                key: Key("start.button"),
                 onPressed: () => start(),
                 child: Text("Start"),
               ),
@@ -88,8 +111,35 @@ class _MyHomePageState extends State<MyHomePage> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: ElevatedButton(
+                key: Key("stop.button"),
                 onPressed: () => stop(),
                 child: Text("Stop"),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton(
+                key: Key("lap.button"),
+                onPressed: null == _timer ? null : () => lap(),
+                child: Text("Lap"),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _laps.length,
+                itemBuilder: (context, index) {
+                  int reversedIndex = _laps.length - index - 1;
+                  return Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          "Lap ${reversedIndex + 1}: ${_laps[reversedIndex]}",
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
